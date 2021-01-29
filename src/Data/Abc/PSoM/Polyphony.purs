@@ -1,21 +1,22 @@
-module Data.Abc.PSoM.Polyphony (generateDSL) where
+module Data.Abc.PSoM.Polyphony 
+  ( generateDSL
+  , generateDSL') where
 
-import Prelude (($), (>), (<>))
-import Data.Array (index, length, mapWithIndex)
-import Data.Maybe (Maybe(..), fromMaybe)
-import Data.Foldable (foldl)
 import Data.Abc (AbcTune, TuneBody)
-import Data.Abc.Voice (partitionTuneBody)
 import Data.Abc.Metadata (getTitle)
-import Data.Midi.Instrument (InstrumentName(..))
 import Data.Abc.PSoM.DSL (toDSL)
 import Data.Abc.PSoM.Translation (initialise, toPSoM)
-
+import Data.Abc.Voice (partitionTuneBody)
+import Data.Array (head, index, length, mapWithIndex)
+import Data.Foldable (foldl)
+import Data.Maybe (Maybe(..), fromJust, fromMaybe)
+import Data.Midi.Instrument (InstrumentName(..))
+import Partial.Unsafe (unsafePartial)
+import Prelude (($), (>), (<>), map)
 
 -- | Discriminate between monophonic and polyphonic ABC tunes and generate
 -- | appropriate PSoM DSL.  The latter requires separate strands for each voice
 -- | which are joined together at the start by means of a Par construct
-
 -- | generate the PSoM DSL for the ABC tune using the provided instruments
 generateDSL :: AbcTune -> Array InstrumentName -> String
 generateDSL  abcTune instrumentNames =
@@ -33,6 +34,30 @@ generateDSL  abcTune instrumentNames =
     else
       -- monophonic
       tuneName <> "\r\n" <> (generateVoice instrumentNames abcTune 0 abcTune.body)
+
+-- | As above, but generate the PSoM DSL for the separate ABC voices and tune name 
+-- | using the provided instruments
+generateDSL' :: Array AbcTune -> Array InstrumentName -> String -> String
+generateDSL' tunes instrumentNames name =
+  case (length tunes) of 
+    0 -> 
+      ""
+    1 ->
+      -- monophonic
+      let 
+        abcTune = unsafePartial $ fromJust $ head tunes 
+      in
+        (enquote name) <> "\r\n" <> (generateVoice instrumentNames abcTune 0 abcTune.body)    
+    _ -> 
+      -- polyphonic
+      let
+        abcTune = unsafePartial $ fromJust $ head tunes 
+        voices = map (\t -> t.body) tunes
+        voicesArray :: Array String
+        voicesArray = generateVoices abcTune voices instrumentNames
+      in
+        (enquote name) <> "\r\n" <> "Par\r\n" <> (foldl (<>) "" voicesArray)  
+
 
 -- | generate the DSL for all the polyphonic voices
 generateVoices :: AbcTune -> Array TuneBody -> Array InstrumentName -> Array String
