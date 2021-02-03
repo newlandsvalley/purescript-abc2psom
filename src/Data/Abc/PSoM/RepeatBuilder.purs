@@ -2,7 +2,7 @@
 -- | either simple repeats or voltas
 module Data.Abc.PSoM.RepeatBuilder (buildRepeatedMelody) where
 
-import Prelude (($), (<>), (&&), (||), (>), (>=), (<), (<=), (+))
+import Prelude (($), (<>), (&&), (||), (>), (>=), (<), (<=), (+), map)
 import Data.Array (concat, mapWithIndex, toUnfoldable) as Array
 import Data.Foldable (foldl)
 import Data.Unfoldable (replicate)
@@ -10,8 +10,9 @@ import Data.List (List, (:), null, concatMap, filter, reverse, singleton)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Monoid (mempty)
 import Data.Rational (fromInt)
+import Data.Tuple(Tuple(..))
 import Data.Abc.Repeats.Types (Section(..), Sections)
-import Data.Abc.Repeats.Variant (activeVariants, variantEndingOf, variantCount, variantIndexMax)
+import Data.Abc.Repeats.Variant (activeVariants, variantPositionOf, variantCount, variantIndexMax)
 import Data.Abc.PSoM
 import Data.Abc.PSoM.Types (PSoMBar)
 
@@ -110,7 +111,7 @@ prefaceSlice mbs start end section =
     sectionBars :: List PSoMBar
     sectionBars = filter (barSelector start end) mbs
     firstEnding :: Int
-    firstEnding = fromMaybe start $ variantEndingOf 0 section
+    firstEnding = fromMaybe start $ variantPositionOf 0 section
   in
     simpleSlice start firstEnding sectionBars 
 
@@ -121,18 +122,18 @@ accumulateEndingSlices mbs start end section  =
     sectionBars :: List PSoMBar
     sectionBars = filter (barSelector start end) mbs
   in 
-    Array.mapWithIndex
-              (variantEndingSlice start end section sectionBars)
-              (activeVariants section)   
+    map
+       (variantEndingSlice start end section sectionBars)
+       (activeVariants section)   
 
 -- | build an ending slice for a particular variant ending at index 'index'
-variantEndingSlice :: Int -> Int -> Section -> List PSoMBar -> Int -> Int -> List PSMusic 
-variantEndingSlice start end section sectionBars index pos = 
+variantEndingSlice :: Int -> Int -> Section -> List PSoMBar -> Tuple Int Int -> List PSMusic 
+variantEndingSlice start end section sectionBars (Tuple index pos) = 
   let
     -- the first ending is the main tune section which is always from the 
     -- start to the first volta 
     firstEnding :: Int
-    firstEnding = fromMaybe start $ variantEndingOf 0 section
+    firstEnding = fromMaybe start $ variantPositionOf 0 section
     -- this is the current volta we're looking at
     thisEnding = pos
     -- this next bit is tricky
@@ -156,7 +157,7 @@ variantEndingSlice start end section sectionBars index pos =
     -- favour of end if the resulting bar position falls before the start
     -- position of the variant.
     candidateNextEnding = 
-      fromMaybe start $ variantEndingOf (index + 1) section
+      fromMaybe start $ variantPositionOf (index + 1) section
     nextEnding :: Int
     nextEnding =     
       if (index >= variantIndexMax section || candidateNextEnding <= pos)
