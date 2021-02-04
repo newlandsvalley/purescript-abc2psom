@@ -74,6 +74,8 @@ repeatSuite =
        assertPSoM complexVolta1 complexVoltaProgram
     test "complex volta 2" do
        assertPSoM complexVolta2 complexVoltaProgram
+    test "complex volta 3" do
+       assertPSoM complexVolta3 complexVoltaProgram3
 
 
 headers :: String 
@@ -194,10 +196,21 @@ complexVolta1 =
 complexVolta2 :: String 
 complexVolta2 = 
   headers <> " D |1,3 E :|2,4 F |\r\n"
+
+complexVolta3 :: String 
+complexVolta3 = 
+  headers <> " D |1,2,3 E :|4 F |\r\n"
                     
 complexVoltaProgram :: PSoMProgram
 complexVoltaProgram =
   PSoMProgram { variables : (noteD : noteE : noteFs : noteE : noteFs : Nil)
+               , program : (0 : 1 : 0 : 2 : 0 : 3 : 0 : 4 : Nil)
+               , tempo : fromInt 1
+               }     
+
+complexVoltaProgram3 :: PSoMProgram
+complexVoltaProgram3 =
+  PSoMProgram { variables : (noteD : noteE : noteE : noteE : noteFs : Nil)
                , program : (0 : 1 : 0 : 2 : 0 : 3 : 0 : 4 : Nil)
                , tempo : fromInt 1
                }      

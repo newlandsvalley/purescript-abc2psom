@@ -2,17 +2,18 @@
 -- | either simple repeats or voltas
 module Data.Abc.PSoM.RepeatBuilder (buildRepeatedMelody) where
 
-import Prelude (($), (<>), (&&), (||), (>), (>=), (<), (<=), (+), map)
+import Prelude (($), (<>), (&&), (>), (>=), (<), (+), map)
 import Data.Array (concat, mapWithIndex, toUnfoldable) as Array
 import Data.Foldable (foldl)
 import Data.Unfoldable (replicate)
 import Data.List (List, (:), null, concatMap, filter, reverse, singleton)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Monoid (mempty)
+import Data.Newtype (unwrap)
 import Data.Rational (fromInt)
 import Data.Tuple(Tuple(..))
-import Data.Abc.Repeats.Types (Section(..), Sections)
-import Data.Abc.Repeats.Variant (activeVariants, variantPositionOf, variantCount, variantIndexMax)
+import Data.Abc.Repeats.Types (BarNo, Section(..), Sections)
+import Data.Abc.Repeats.Variant (activeVariants, findEndingPosition, variantPositionOf, variantCount)
 import Data.Abc.PSoM
 import Data.Abc.PSoM.Types (PSoMBar)
 
@@ -32,11 +33,11 @@ accumulateMessages mbs =
   reverse $ concatMap _.psomMessages mbs
 
 -- | select a subset of PSoM bars
-barSelector :: Int -> Int -> PSoMBar -> Boolean
+barSelector :: BarNo -> BarNo -> PSoMBar -> Boolean
 barSelector strt fin mb =
   mb.number >= strt && mb.number < fin
 
-simpleSlice :: Int -> Int -> List PSoMBar -> List PSMusic
+simpleSlice :: BarNo -> BarNo -> List PSoMBar -> List PSMusic
 simpleSlice start finish mbs =
   accumulateMessages $ filter (barSelector start finish) mbs
 
@@ -44,7 +45,7 @@ simpleSlice start finish mbs =
 -- | This generates a single variable for the slice
 -- | and the program references it more than once (if repeated)
 -- | or just once otherwise
-trackSlice :: Int -> Int -> Int -> List PSoMBar -> PSoMProgram
+trackSlice :: BarNo -> BarNo -> Int -> List PSoMBar -> PSoMProgram
 trackSlice start finish replicationCount mbs =
   let
     newVar = simpleSlice start finish mbs
@@ -105,7 +106,7 @@ variantProgram preface endings =
       {variables, program, tempo}
 
 -- | build the preface slice
-prefaceSlice :: List PSoMBar -> Int -> Int -> Section -> List PSMusic
+prefaceSlice :: List PSoMBar -> BarNo -> BarNo -> Section -> List PSMusic
 prefaceSlice mbs start end section = 
   let
     sectionBars :: List PSoMBar
@@ -116,7 +117,7 @@ prefaceSlice mbs start end section =
     simpleSlice start firstEnding sectionBars 
 
 -- | accumulate all the slices for the variant endings
-accumulateEndingSlices :: List PSoMBar -> Int -> Int -> Section -> Array (List PSMusic)
+accumulateEndingSlices :: List PSoMBar -> BarNo -> BarNo -> Section -> Array (List PSMusic)
 accumulateEndingSlices mbs start end section  = 
   let 
     sectionBars :: List PSoMBar
@@ -127,7 +128,7 @@ accumulateEndingSlices mbs start end section  =
        (activeVariants section)   
 
 -- | build an ending slice for a particular variant ending at index 'index'
-variantEndingSlice :: Int -> Int -> Section -> List PSoMBar -> Tuple Int Int -> List PSMusic 
+variantEndingSlice :: BarNo -> BarNo -> Section -> List PSoMBar -> Tuple Int Int -> List PSMusic 
 variantEndingSlice start end section sectionBars (Tuple index pos) = 
   let
     -- the first ending is the main tune section which is always from the 
@@ -155,16 +156,9 @@ variantEndingSlice start end section sectionBars (Tuple index pos) =
     -- We thus find a candidate ending for the volta (which may not exist).
     -- We'll use it for any variant other than the last, buut reject it in
     -- favour of end if the resulting bar position falls before the start
-    -- position of the variant.
-    candidateNextEnding = 
-      fromMaybe start $ variantPositionOf (index + 1) section
-    nextEnding :: Int
-    nextEnding =     
-      if (index >= variantIndexMax section || candidateNextEnding <= pos)
-        then 
-          end
-        else 
-          candidateNextEnding
+    -- position of the variant. This is managed by findEndingPosition.
+     
+    nextEnding = findEndingPosition (unwrap section).variantPositions index end     
   in
     simpleSlice thisEnding nextEnding sectionBars      
 
