@@ -76,6 +76,8 @@ repeatSuite =
        assertPSoM complexVolta2 complexVoltaProgram
     test "complex volta 3" do
        assertPSoM complexVolta3 complexVoltaProgram3
+    test "complex volta 3a" do
+       assertPSoM complexVolta3a complexVoltaProgram3
 
 
 headers :: String 
@@ -200,6 +202,10 @@ complexVolta2 =
 complexVolta3 :: String 
 complexVolta3 = 
   headers <> " D |1,2,3 E :|4 F |\r\n"
+
+complexVolta3a :: String 
+complexVolta3a = 
+  headers <> " D |1-3 E :|4 F |\r\n"
                     
 complexVoltaProgram :: PSoMProgram
 complexVoltaProgram =
