@@ -42,7 +42,7 @@ type TState =
     { modifiedKeySignature ::  ModifiedKeySignature    -- the current key signature
     , abcTempo ::  AbcTempo                            -- the current tempo
     , currentBar :: PSoMBar                            -- the current bar being translated
-    , currentBarAccidentals :: Accidentals.Accidentals -- can't put this in MidiBar because of typeclass constraints
+    , currentBarAccidentals :: Accidentals.Accidentals -- can't put this in PSoMBar because of typeclass constraints
                                                        -- any notes marked explicitly as accidentals in the current bar
     , lastNoteTied :: Maybe AbcNote                    -- the last note, if it was tied?
     , repeatState :: RepeatState                       -- the repeat state of the tune
@@ -232,22 +232,17 @@ transformHeader h =
         tpl <- get
         pure $ snd tpl
 
-addGraceableNoteToState :: TState-> GraceableNote -> TState
-addGraceableNoteToState tstate gNote =
-  addNoteToState tstate gNote.abcNote
-
--- | a note is added to the current barAccidentals as a NoteOn NoteOff pair
+-- | a note is added to the current barAccidentals as a PSNote
 -- | there are other implications for state - if the note has an explicit
 -- | accidental, overriding the key then it is added to state because it
 -- | influences other notes later in the bar
-
-addNoteToState :: TState-> AbcNote -> TState
-addNoteToState tstate abcNote =
+addGraceableNoteToState :: TState-> GraceableNote -> TState
+addGraceableNoteToState tstate gNote =
   let
     Tuple msgs newTie =
-      processNoteWithTie tstate abcNote
+      processNoteWithTie tstate gNote
     barAccidentals =
-      addNoteToBarAccidentals abcNote tstate.currentBarAccidentals
+      addNoteToBarAccidentals gNote.abcNote tstate.currentBarAccidentals
   in
     tstate { currentBar = tstate.currentBar { psomMessages = msgs }
            , lastNoteTied = newTie
@@ -303,7 +298,6 @@ addBrokenToState signature1 signature2 tstate gNotes =
   in
     tstate' { currentBar = tstate'.currentBar { psomMessages = messages }    }
 
--- addTupletToState :: Rational -> TState -> List RestOrNote -> TState
 addTupletToState :: Rational -> TState -> NonEmptyList RestOrNote -> TState
 addTupletToState signature tstate abcRestOrNotes =
   let
@@ -378,9 +372,13 @@ accumRestOrNotes tstate gNotes =
 -- | if it was tied, then we simply coalesce the notes by adding their durations.  If the incoming note
 -- | is tied, then the (possibly combined) note is saved as the 'lastNoteTied' so that the whole
 -- | process will begin again at the next note.  If not tied, then the (possibly combined) note
--- | is written into the current MIDI abcNote
-processNoteWithTie ::  TState -> AbcNote -> Tuple (List PSMusic) (Maybe AbcNote)
-processNoteWithTie tstate abcNote =
+-- | is written into the current PSoM abcNote
+-- | Grace notes are just ignored at the moment
+processNoteWithTie ::  TState -> GraceableNote -> Tuple (List PSMusic) (Maybe AbcNote)
+processNoteWithTie tstate gNote =
+  let 
+    abcNote = gNote.abcNote 
+  in 
     case tstate.lastNoteTied of
       Just lastNote ->
         let
@@ -490,7 +488,7 @@ brokenTempo i isUp =
   else
     (fromInt 1) - (dotFactor i)
 
--- | does the MIDI bar hold no notes (or any other MIDI messages)
+-- | does the PSoMbar hold no notes or anything else of importance
 isBarEmpty :: PSoMBar -> Boolean
 isBarEmpty mb =
     null mb.psomMessages
@@ -511,7 +509,7 @@ updateState f abc =
     pure recording
 
 -- | move the final bar from state into the final track and then build the recording
--- | complete the RepeatState and then build the MIDI melody
+-- | complete the RepeatState and then build the PSoM program
 finaliseMelody :: State TransformationState PSoMProgram
 finaliseMelody =
   do
