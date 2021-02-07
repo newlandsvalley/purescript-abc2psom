@@ -235,7 +235,7 @@ noteFs =
 
 noteMus :: Rational -> String -> List PSMusic
 noteMus duration pitchClass = 
-  singleton (PSNOTE (note duration pitchClass))
+  singleton (PSNOTE ( {graces: Nil, note: note duration pitchClass} ))
 
 note :: Rational -> String -> PSNote 
 note duration pitchClass = 

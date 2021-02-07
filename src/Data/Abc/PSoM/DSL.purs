@@ -53,7 +53,7 @@ line ms =
   "Line " <> (commaSeparate $ map music ms)
 
 music :: PSMusic -> String
-music (PSNOTE n) = note n
+music (PSNOTE {graces : g, note: n}) = note n
 music (PSREST r) = rest r
 music (PSCHORD c) = chord c
 music (PSTUPLET t) = tuplet t

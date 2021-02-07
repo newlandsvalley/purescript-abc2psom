@@ -6,7 +6,9 @@ import Data.Abc.PSoM.Types (PSoMBar)
 import Data.Abc.PSoM.RepeatBuilder (buildRepeatedMelody)
 
 import Control.Monad.State (State, get, put, evalState)
-import Data.Abc (AbcTune, AbcRest, AbcNote, RestOrNote, Accidental(..), Bar, BarLine, Broken(..), Header(..), TuneBody, BodyPart(..), GraceableNote, MusicLine, Music(..), Mode(..), ModifiedKeySignature, TempoSignature, PitchClass(..))
+import Data.Abc (AbcTune, AbcRest, AbcNote, RestOrNote, Accidental(..), Bar, BarLine, 
+      Broken(..), Header(..), TuneBody, BodyPart(..), GraceableNote, MusicLine, Music(..), Mode(..), 
+      ModifiedKeySignature, NoteDuration, TempoSignature, PitchClass(..))
 import Data.Abc.Accidentals as Accidentals
 import Data.Abc.Metadata (dotFactor, getKeySig)
 import Data.Abc.Midi (midiPitchOffset)
@@ -16,13 +18,12 @@ import Data.Abc.Tempo (AbcTempo, getAbcTempo, defaultAbcTempo, beatsPerSecond)
 import Data.Array (index) as Array
 import Data.Either (Either(..))
 import Data.Foldable (foldl)
-import Data.List (List(..), (:), null, toUnfoldable, reverse)
+import Data.List (List(..), (:), null, reverse)
 import Data.List.Types (NonEmptyList, toList)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Monoid (mempty)
 import Data.Rational (Rational, fromInt, (%))
 import Data.Tuple (Tuple(..), fst, snd)
-import Partial.Unsafe (unsafePartial)
 import Prelude (bind, map, pure, ($), (+), (-), (*), (/))
 
 -- import Debug.Trace (trace, traceShow)
@@ -44,7 +45,7 @@ type TState =
     , currentBar :: PSoMBar                            -- the current bar being translated
     , currentBarAccidentals :: Accidentals.Accidentals -- can't put this in PSoMBar because of typeclass constraints
                                                        -- any notes marked explicitly as accidentals in the current bar
-    , lastNoteTied :: Maybe AbcNote                    -- the last note, if it was tied?
+    , lastNoteTied :: Maybe GraceableNote              -- the last note, if it was tied?
     , repeatState :: RepeatState                       -- the repeat state of the tune
     , rawTrack :: List PSoMBar                         -- the growing list of completed bars
     }
@@ -142,7 +143,7 @@ transformMusic :: Music -> State TransformationState PSoMProgram
 transformMusic m =
   case m of
     Note gNote ->
-      updateState addGraceableNoteToState gNote
+      updateState (addGraceableNoteToState (1 % 1)) gNote
 
     Rest r ->
       updateState addRestToState r.duration
@@ -159,14 +160,16 @@ transformMusic m =
           let
             signature1 = brokenTempo i false
             signature2 = brokenTempo i true
-          in
-            updateState (addBrokenToState signature1 signature2) (note1 : note2 : Nil)
+          in do
+            _ <- updateState (addGraceableNoteToState signature1) note1
+            updateState (addGraceableNoteToState signature2) note2
         RightArrow i ->
           let
             signature1 = brokenTempo i true
             signature2 = brokenTempo i false
-          in
-            updateState (addBrokenToState signature1 signature2) (note1 : note2 : Nil)
+          in do
+            _ <- updateState (addGraceableNoteToState signature1) note1
+            updateState (addGraceableNoteToState signature2) note2
 
     Inline header ->
       transformHeader header
@@ -236,9 +239,10 @@ transformHeader h =
 -- | there are other implications for state - if the note has an explicit
 -- | accidental, overriding the key then it is added to state because it
 -- | influences other notes later in the bar
-addGraceableNoteToState :: TState-> GraceableNote -> TState
-addGraceableNoteToState tstate gNote =
+addGraceableNoteToState :: Rational -> TState-> GraceableNote -> TState
+addGraceableNoteToState modifier tstate originalgNote =
   let
+    gNote = modifyNoteDuration originalgNote modifier
     Tuple msgs newTie =
       processNoteWithTie tstate gNote
     barAccidentals =
@@ -261,9 +265,9 @@ addChordToState chordDuration tstate notes =
     case tstate.lastNoteTied of
       -- we don't support ties into chords and so emit the tied note then the chord
       -- (this is a degenerate case)
-      Just lastAbcNote ->
+      Just lastgNote ->
         let
-          lastNote = buildNote tstate lastAbcNote
+          lastNote = buildGraceableNote tstate lastgNote
           messages = psChord : (PSNOTE lastNote) : tstate.currentBar.psomMessages
         in
           tstate' { currentBar = tstate'.currentBar { psomMessages = messages }
@@ -277,27 +281,6 @@ addChordToState chordDuration tstate notes =
         in
           tstate' { currentBar = tstate'.currentBar { psomMessages = messages } }
 
-addBrokenToState :: Rational -> Rational -> TState -> List GraceableNote -> TState
-addBrokenToState signature1 signature2 tstate gNotes =
-  let
-    -- make a list of raw ABC notes
-    notes = map (\g -> g.abcNote) gNotes
-    amendDuration :: Rational -> PSNote -> PSMusic
-    amendDuration signature (PSNote note) =
-      PSNOTE $ PSNote ( note { duration = note.duration * signature } )
-    makePair :: Partial => List PSNote -> Tuple PSNote PSNote
-    makePair ns =
-      case (toUnfoldable ns) of
-        [n1, n2] -> Tuple n1 n2
-
-    (Tuple tstate' psNotes) = accumNotes tstate notes
-    (Tuple note2 note1) = unsafePartial (makePair $ psNotes)
-    messages = (amendDuration signature2 note2)
-                 : (amendDuration signature1 note1)
-                 : tstate.currentBar.psomMessages
-  in
-    tstate' { currentBar = tstate'.currentBar { psomMessages = messages }    }
-
 addTupletToState :: Rational -> TState -> NonEmptyList RestOrNote -> TState
 addTupletToState signature tstate abcRestOrNotes =
   let
@@ -309,9 +292,9 @@ addTupletToState signature tstate abcRestOrNotes =
   in
     case tstate.lastNoteTied of
       -- we don't support ties into tuplets.  Just emit the tie first.
-      Just lastAbcNote ->
+      Just lastgNote ->
         let
-          lastNote = buildNote tstate lastAbcNote
+          lastNote = buildGraceableNote tstate lastgNote
           messages = psTuplet : (PSNOTE lastNote) : tstate.currentBar.psomMessages
         in
           tstate' { currentBar = tstate'.currentBar { psomMessages = messages }
@@ -352,7 +335,10 @@ accumRestOrNote (Tuple tstate psNotes) abcRestOrNote =
       Left abcRest ->
         Left $ buildRest tstate abcRest.duration
       Right gNote ->
-        Right $ buildGraceableNote tstate gNote
+        -- we really ought to include the possibility of grace notes in tuplets
+        -- but for now, ignore it
+        -- Right $ buildGraceableNote tstate gNote
+        Right $ buildNote tstate gNote.abcNote
   in
     Tuple (tstate {currentBarAccidentals = barAccidentals }) (nextNote : psNotes)
 
@@ -374,7 +360,7 @@ accumRestOrNotes tstate gNotes =
 -- | process will begin again at the next note.  If not tied, then the (possibly combined) note
 -- | is written into the current PSoM abcNote
 -- | Grace notes are just ignored at the moment
-processNoteWithTie ::  TState -> GraceableNote -> Tuple (List PSMusic) (Maybe AbcNote)
+processNoteWithTie ::  TState -> GraceableNote -> Tuple (List PSMusic) (Maybe GraceableNote)
 processNoteWithTie tstate gNote =
   let 
     abcNote = gNote.abcNote 
@@ -382,30 +368,57 @@ processNoteWithTie tstate gNote =
     case tstate.lastNoteTied of
       Just lastNote ->
         let
-          combinedAbcNote = abcNote { duration = abcNote.duration + lastNote.duration }
-          psNote = buildNote tstate combinedAbcNote
+          -- combinedAbcNote = abcNote { duration = abcNote.duration + lastNote.duration }
+          combinedGraceableNote = incrementNoteDuration lastNote abcNote.duration
+          psNote = buildGraceableNote tstate combinedGraceableNote
         in
           if (abcNote.tied) then
             -- both notes tied - augment the cached tied note
-            Tuple (tstate.currentBar.psomMessages) (Just combinedAbcNote)
+            Tuple (tstate.currentBar.psomMessages) (Just combinedGraceableNote)
           else
             -- incoming note not tied - emit the augmented note
             Tuple (PSNOTE psNote : tstate.currentBar.psomMessages) Nothing
       _  ->
         if (abcNote.tied) then
           -- the new note is tied and so cache it
-          Tuple (tstate.currentBar.psomMessages) (Just abcNote)
+          Tuple (tstate.currentBar.psomMessages) (Just gNote)
         else
           let
-            psNote = buildNote tstate abcNote
+            psNote = buildGraceableNote tstate gNote
           in
             -- write out the note to the current bar
             Tuple (PSNOTE psNote : tstate.currentBar.psomMessages) Nothing
 
+-- ! increment the duration of a note
+-- | used to build up tied notes
+incrementNoteDuration :: GraceableNote -> NoteDuration -> GraceableNote
+incrementNoteDuration tiedNote duration =
+  let
+    abcNote = tiedNote.abcNote
+    combinedAbcNote = abcNote { duration = abcNote.duration + duration }
+  in
+    tiedNote { abcNote = combinedAbcNote }
+
+-- | modify a note duration 
+-- | for use in broken rhythm pairs etc
+modifyNoteDuration :: GraceableNote -> Rational -> GraceableNote
+modifyNoteDuration gNote modifier =
+  let
+    abcNote = gNote.abcNote
+    modifiedAbcNote = abcNote { duration = abcNote.duration * modifier }
+  in
+    gNote { abcNote = modifiedAbcNote }    
+
+
 -- Grace notes are just ignored at the moment
-buildGraceableNote :: TState -> GraceableNote -> PSNote
+buildGraceableNote :: TState -> GraceableNote -> PSGracedNote
 buildGraceableNote tstate gnote =
-  buildNote tstate gnote.abcNote
+  let 
+    graces = Nil
+    note =
+      buildNote tstate gnote.abcNote
+  in 
+    { graces, note }
 
 -- | Our ABC implementation uses middle C = (C,5)
 -- | whereas HSoM (and thus PSoM) uses middle C = (C,4)

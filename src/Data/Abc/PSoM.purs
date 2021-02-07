@@ -62,8 +62,13 @@ instance showPSRestOrNoteSequence :: Show PSRestOrNoteSequence where
 instance eqPSRestOrNoteSequence :: Eq PSRestOrNoteSequence where
   eq = genericEq
 
+type PSGracedNote = 
+  { graces :: List PSNote
+  , note :: PSNote 
+  }  
+
 data PSMusic =
-    PSNOTE PSNote
+    PSNOTE PSGracedNote       
   | PSREST PSRest
   | PSCHORD (List PSNote)
   | PSTUPLET PSRestOrNoteSequence
