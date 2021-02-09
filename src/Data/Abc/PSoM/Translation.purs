@@ -2,23 +2,22 @@
 module Data.Abc.PSoM.Translation (initialise, toPSoM) where
 
 import Data.Abc.PSoM
-import Data.Abc.PSoM.Types (PSoMBar)
-import Data.Abc.PSoM.RepeatBuilder (buildRepeatedMelody)
 
 import Control.Monad.State (State, get, put, evalState)
-import Data.Abc (AbcTune, AbcRest, AbcNote, RestOrNote, Accidental(..), Bar, BarLine, 
-      Broken(..), Header(..), TuneBody, BodyPart(..), GraceableNote, MusicLine, Music(..), Mode(..), 
-      ModifiedKeySignature, NoteDuration, TempoSignature, PitchClass(..))
+import Data.Abc (AbcRest, AbcTune, Accidental(..), Bar, BarLine, BodyPart(..), Broken(..), GraceableNote, Header(..), Mode(..), ModifiedKeySignature, Music(..), MusicLine, NoteDuration, PitchClass(..), RestOrNote, TempoSignature, TuneBody, AbcNote)
 import Data.Abc.Accidentals as Accidentals
 import Data.Abc.Metadata (dotFactor, getKeySig)
 import Data.Abc.Midi (midiPitchOffset)
 import Data.Abc.Midi.RepeatSections (initialRepeatState, indexBar, finalBar)
+import Data.Abc.PSoM.RepeatBuilder (buildRepeatedMelody)
+import Data.Abc.PSoM.Types (PSoMBar)
 import Data.Abc.Repeats.Types (RepeatState)
 import Data.Abc.Tempo (AbcTempo, getAbcTempo, defaultAbcTempo, beatsPerSecond)
 import Data.Array (index) as Array
 import Data.Either (Either(..))
 import Data.Foldable (foldl)
 import Data.List (List(..), (:), null, reverse)
+import Data.List.NonEmpty (length)
 import Data.List.Types (NonEmptyList, toList)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Monoid (mempty)
@@ -267,8 +266,8 @@ addChordToState chordDuration tstate notes =
       -- (this is a degenerate case)
       Just lastgNote ->
         let
-          lastNote = buildGraceableNote tstate lastgNote
-          messages = psChord : (PSNOTE lastNote) : tstate.currentBar.psomMessages
+          lastNoteMus = buildGraceableNote tstate lastgNote
+          messages = psChord : lastNoteMus : tstate.currentBar.psomMessages
         in
           tstate' { currentBar = tstate'.currentBar { psomMessages = messages }
                   , lastNoteTied = Nothing
@@ -294,8 +293,8 @@ addTupletToState signature tstate abcRestOrNotes =
       -- we don't support ties into tuplets.  Just emit the tie first.
       Just lastgNote ->
         let
-          lastNote = buildGraceableNote tstate lastgNote
-          messages = psTuplet : (PSNOTE lastNote) : tstate.currentBar.psomMessages
+          lastNoteMus = buildGraceableNote tstate lastgNote
+          messages = psTuplet : lastNoteMus : tstate.currentBar.psomMessages
         in
           tstate' { currentBar = tstate'.currentBar { psomMessages = messages }
                   , lastNoteTied = Nothing }
@@ -370,34 +369,34 @@ processNoteWithTie tstate gNote =
         let
           -- combinedAbcNote = abcNote { duration = abcNote.duration + lastNote.duration }
           combinedGraceableNote = incrementNoteDuration lastNote abcNote.duration
-          psNote = buildGraceableNote tstate combinedGraceableNote
+          psNoteMus = buildGraceableNote tstate combinedGraceableNote
         in
           if (abcNote.tied) then
             -- both notes tied - augment the cached tied note
             Tuple (tstate.currentBar.psomMessages) (Just combinedGraceableNote)
           else
             -- incoming note not tied - emit the augmented note
-            Tuple (PSNOTE psNote : tstate.currentBar.psomMessages) Nothing
+            Tuple (psNoteMus : tstate.currentBar.psomMessages) Nothing
       _  ->
         if (abcNote.tied) then
           -- the new note is tied and so cache it
           Tuple (tstate.currentBar.psomMessages) (Just gNote)
         else
           let
-            psNote = buildGraceableNote tstate gNote
+            psNoteMus = buildGraceableNote tstate gNote
           in
             -- write out the note to the current bar
-            Tuple (PSNOTE psNote : tstate.currentBar.psomMessages) Nothing
+            Tuple (psNoteMus : tstate.currentBar.psomMessages) Nothing
 
--- ! increment the duration of a note
+-- ! increment a note duration 
 -- | used to build up tied notes
 incrementNoteDuration :: GraceableNote -> NoteDuration -> GraceableNote
-incrementNoteDuration tiedNote duration =
+incrementNoteDuration gNote duration =
   let
-    abcNote = tiedNote.abcNote
+    abcNote = gNote.abcNote
     combinedAbcNote = abcNote { duration = abcNote.duration + duration }
   in
-    tiedNote { abcNote = combinedAbcNote }
+    gNote { abcNote = combinedAbcNote }
 
 -- | modify a note duration 
 -- | for use in broken rhythm pairs etc
@@ -410,15 +409,31 @@ modifyNoteDuration gNote modifier =
     gNote { abcNote = modifiedAbcNote }    
 
 
--- Grace notes are just ignored at the moment
-buildGraceableNote :: TState -> GraceableNote -> PSGracedNote
+-- Build either a normal note or a graced note and wrap as PSMusic
+buildGraceableNote :: TState -> GraceableNote -> PSMusic
 buildGraceableNote tstate gnote =
-  let 
-    graces = Nil
-    note =
-      buildNote tstate gnote.abcNote
-  in 
-    { graces, note }
+  case gnote.maybeGrace of  
+    Nothing -> 
+        PSNOTE $ buildNote tstate gnote.abcNote
+    Just grace -> 
+      let 
+        graceCount = length grace.notes
+        -- each grace note uses up 10% of the graced note's duration
+        -- this is the summary grace duration
+        graceDuration = (1 % 10) * gnote.abcNote.duration * tstate.abcTempo.unitNoteLength
+        -- this is the (identical) individual grace notation, recognising that buildNote 
+        -- will multiply by the unit note length itself
+        individualGraceDuration = (1 % 10) * gnote.abcNote.duration 
+
+        -- the graced note has what's left
+        noteDuration = ((10 - graceCount) % 10) * gnote.abcNote.duration 
+        -- set the duration of every note and build them all
+        graces0 = map (\n -> n { duration = individualGraceDuration}) grace.notes
+        graces = toList $ map (buildNote tstate) graces0
+        note =
+          buildNote tstate (gnote.abcNote { duration = noteDuration})
+      in 
+        PSGRACEDNOTE { graces, graceDuration, note }
 
 -- | Our ABC implementation uses middle C = (C,5)
 -- | whereas HSoM (and thus PSoM) uses middle C = (C,4)

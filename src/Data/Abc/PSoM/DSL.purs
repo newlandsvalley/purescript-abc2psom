@@ -53,7 +53,8 @@ line ms =
   "Line " <> (commaSeparate $ map music ms)
 
 music :: PSMusic -> String
-music (PSNOTE {graces : g, note: n}) = note n
+music (PSNOTE n) = note n
+music (PSGRACEDNOTE n) = gracedNote n
 music (PSREST r) = rest r
 music (PSCHORD c) = chord c
 music (PSTUPLET t) = tuplet t
@@ -70,6 +71,39 @@ note (PSNote n) =
                   , nicelySpace ["Note", "wn", n.pitchClass, show n.octave]
                   , ")"
                   ]
+                  
+gracedNote :: PSGracedNote -> String
+gracedNote gn =
+  let 
+    graceNotes = graces gn.graces gn.graceDuration
+    actualNote = curtailedGracedNote gn.note
+  in 
+    nicelySpace [graceNotes, ",", actualNote]
+
+-- recognize that grace notes eat into the normal duration of a note and so 
+-- it is highly unlikely we'll hit an exact PSoM note duration and so we 
+-- resort immediately to using a whole note and modifying the tempo to represent it
+graces :: List PSNote -> Rational -> String 
+graces notes duration = 
+  nicelySpace [ "Tempo"
+              , fraction $ reciprocal duration
+              , "("
+              , "Line"
+              , commaSeparate $ 
+                  map (\(PSNote n) -> nicelySpace ["Note", "wn", n.pitchClass, show n.octave])
+                  notes
+              , ")"
+              ]
+
+-- the graced note itself with a curtailed duration
+curtailedGracedNote :: PSNote -> String
+curtailedGracedNote (PSNote n) = 
+  nicelySpace [ "Tempo"
+              , fraction $ reciprocal n.duration
+              , "("
+              , nicelySpace ["Note", "wn", n.pitchClass, show n.octave]
+              , ")"
+              ]
 
 rest :: PSRest -> String
 rest (PSRest r) =

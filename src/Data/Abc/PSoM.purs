@@ -64,11 +64,13 @@ instance eqPSRestOrNoteSequence :: Eq PSRestOrNoteSequence where
 
 type PSGracedNote = 
   { graces :: List PSNote
+  , graceDuration :: Rational   -- equal to the grace duration in each grace PSNote
   , note :: PSNote 
   }  
 
 data PSMusic =
-    PSNOTE PSGracedNote       
+    PSNOTE PSNote       
+  | PSGRACEDNOTE PSGracedNote       
   | PSREST PSRest
   | PSCHORD (List PSNote)
   | PSTUPLET PSRestOrNoteSequence

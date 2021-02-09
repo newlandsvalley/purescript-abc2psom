@@ -8,8 +8,10 @@ import Data.Either (Either(..))
 import Data.Rational (Rational, (%), fromInt)
 import Data.Unfoldable (replicate)
 import Data.Abc.PSoM 
+import Data.Abc.PSoM.DSL (toDSL)
 import Data.Abc.PSoM.Translation (initialise, toPSoM) 
 import Data.Abc.Parser (parse)
+import Data.Midi.Instrument (InstrumentName(AcousticGrandPiano))
 import Test.Unit (Test, TestF, suite, test, failure)
 import Test.Unit.Main (runTest)
 import Test.Unit.Assert as Assert
@@ -35,6 +37,7 @@ main = runTest do
   suite "melody" do
     notesSuite
     repeatSuite
+    -- dslSuite
 
 notesSuite :: Free TestF Unit
 notesSuite =
@@ -57,9 +60,7 @@ notesSuite =
        assertPSoM triplet tripletProgram
     -- this test shows that grace notes are ignored at the moment
     test "grace notes" do
-       assertPSoM graceNotes singleNoteProgram
-
-
+       assertPSoM graceNotes gracedDProgram
 
 repeatSuite :: Free TestF Unit
 repeatSuite =
@@ -79,6 +80,12 @@ repeatSuite =
     test "complex volta 3a" do
        assertPSoM complexVolta3a complexVoltaProgram3
 
+-- use this just to dump a DSL string
+dslSuite :: Free TestF Unit
+dslSuite =
+  suite "Translation of ABC to the full PSoM DSL" do
+    test "grace notes" do
+       Assert.equal "" (toDSL gracedDProgram AcousticGrandPiano)
 
 headers :: String 
 headers = 
@@ -235,7 +242,10 @@ noteFs =
 
 noteMus :: Rational -> String -> List PSMusic
 noteMus duration pitchClass = 
-  singleton (PSNOTE ( {graces: Nil, note: note duration pitchClass} ))
+  singleton (PSNOTE (note duration pitchClass))
+  
+  
+  -- singleton (PSNOTE ( {graces: Nil, note: note duration pitchClass} ))
 
 note :: Rational -> String -> PSNote 
 note duration pitchClass = 
@@ -265,3 +275,26 @@ tripletDEF =
               : Right (note (1 % 8) "Fs")
               : Nil )
     }
+
+
+gracedDProgram :: PSoMProgram
+gracedDProgram =
+  PSoMProgram { variables : singleton (gracedD)
+              , program : (0 : Nil)
+              , tempo : fromInt 1
+              }    
+
+gracedD :: List PSMusic 
+gracedD = 
+  singleton (PSGRACEDNOTE { graces: gracesFE
+                          , graceDuration: (1 % 80) -- for each grace note
+                          , note: (note (1 % 10) "D")
+                          })
+
+-- | the actual duration in grace notes is not used because it is overridden
+gracesFE :: List PSNote
+gracesFE = 
+  (note (1 % 80) "Fs") : (note (1 % 80) "E") : Nil              
+
+
+
