@@ -73,7 +73,7 @@ note (PSNote n) =
                   ]
                   
 gracedNote :: PSGracedNote -> String
-gracedNote gn =
+gracedNote (PSGracedNote gn) =
   let 
     graceNotes = graces gn.graces gn.graceDuration
     actualNote = curtailedGracedNote gn.note

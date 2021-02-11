@@ -266,8 +266,8 @@ addChordToState chordDuration tstate notes =
       -- (this is a degenerate case)
       Just lastgNote ->
         let
-          lastNoteMus = buildGraceableNote tstate lastgNote
-          messages = psChord : lastNoteMus : tstate.currentBar.psomMessages
+          lastGracedNote = buildGraceableNote tstate lastgNote
+          messages = psChord : (PSGRACEDNOTE lastGracedNote) : tstate.currentBar.psomMessages
         in
           tstate' { currentBar = tstate'.currentBar { psomMessages = messages }
                   , lastNoteTied = Nothing
@@ -293,8 +293,8 @@ addTupletToState signature tstate abcRestOrNotes =
       -- we don't support ties into tuplets.  Just emit the tie first.
       Just lastgNote ->
         let
-          lastNoteMus = buildGraceableNote tstate lastgNote
-          messages = psTuplet : lastNoteMus : tstate.currentBar.psomMessages
+          lastGracedNote = buildGraceableNote tstate lastgNote
+          messages = psTuplet : (PSGRACEDNOTE lastGracedNote) : tstate.currentBar.psomMessages
         in
           tstate' { currentBar = tstate'.currentBar { psomMessages = messages }
                   , lastNoteTied = Nothing }
@@ -369,24 +369,24 @@ processNoteWithTie tstate gNote =
         let
           -- combinedAbcNote = abcNote { duration = abcNote.duration + lastNote.duration }
           combinedGraceableNote = incrementNoteDuration lastNote abcNote.duration
-          psNoteMus = buildGraceableNote tstate combinedGraceableNote
+          psgNote = buildGraceableNote tstate combinedGraceableNote
         in
           if (abcNote.tied) then
             -- both notes tied - augment the cached tied note
             Tuple (tstate.currentBar.psomMessages) (Just combinedGraceableNote)
           else
             -- incoming note not tied - emit the augmented note
-            Tuple (psNoteMus : tstate.currentBar.psomMessages) Nothing
+            Tuple ((PSGRACEDNOTE psgNote) : tstate.currentBar.psomMessages) Nothing
       _  ->
         if (abcNote.tied) then
           -- the new note is tied and so cache it
           Tuple (tstate.currentBar.psomMessages) (Just gNote)
         else
           let
-            psNoteMus = buildGraceableNote tstate gNote
+            psgNote = buildGraceableNote tstate gNote
           in
             -- write out the note to the current bar
-            Tuple (psNoteMus : tstate.currentBar.psomMessages) Nothing
+            Tuple ((PSGRACEDNOTE psgNote) : tstate.currentBar.psomMessages) Nothing
 
 -- ! increment a note duration 
 -- | used to build up tied notes
@@ -409,12 +409,15 @@ modifyNoteDuration gNote modifier =
     gNote { abcNote = modifiedAbcNote }    
 
 
--- Build either a normal note or a graced note and wrap as PSMusic
-buildGraceableNote :: TState -> GraceableNote -> PSMusic
+-- Build either a normal note (returned as a grace-free GraceNote or a true graced note
+buildGraceableNote :: TState -> GraceableNote -> PSGracedNote
 buildGraceableNote tstate gnote =
   case gnote.maybeGrace of  
     Nothing -> 
-        PSNOTE $ buildNote tstate gnote.abcNote
+      let 
+        note = buildNote tstate gnote.abcNote
+      in
+        PSGracedNote { graces: Nil, graceDuration: (1 % 1), note}
     Just grace -> 
       let 
         graceCount = length grace.notes
@@ -433,7 +436,7 @@ buildGraceableNote tstate gnote =
         note =
           buildNote tstate (gnote.abcNote { duration = noteDuration})
       in 
-        PSGRACEDNOTE { graces, graceDuration, note }
+        PSGracedNote { graces, graceDuration, note }
 
 -- | Our ABC implementation uses middle C = (C,5)
 -- | whereas HSoM (and thus PSoM) uses middle C = (C,4)
