@@ -4,7 +4,7 @@ import Data.Abc.PSoM
 
 import Data.Either (Either(..))
 import Data.Foldable (intercalate)
-import Data.List (List, length, toUnfoldable, zipWith, (..))
+import Data.List (List(..), length, toUnfoldable, zipWith, (..))
 import Data.Map (lookup)
 import Data.Maybe (Maybe(..))
 import Data.Midi.Instrument (InstrumentName, gleitzmanName)
@@ -71,9 +71,21 @@ note (PSNote n) =
                   , nicelySpace ["Note", "wn", n.pitchClass, show n.octave]
                   , ")"
                   ]
-                  
+
+-- we now use PSGracedNote in all contexts where a note can be graced, but is is very 
+-- important to translate as just a PSNote in the common case which is where grace 
+-- notes are absent.  Otherwise we produce a an empty line of grace notes which will 
+-- fail in the DSL parser.    
 gracedNote :: PSGracedNote -> String
-gracedNote (PSGracedNote gn) =
+gracedNote (PSGracedNote gn) =      
+  case gn.graces of  
+    Nil -> 
+      note gn.note        
+    _ ->
+      trulyGracedNote (PSGracedNote gn)  
+                  
+trulyGracedNote :: PSGracedNote -> String
+trulyGracedNote (PSGracedNote gn) =
   let 
     graceNotes = graces gn.graces gn.graceDuration
     actualNote = curtailedGracedNote gn.note

@@ -37,7 +37,7 @@ main = runTest do
   suite "melody" do
     notesSuite
     repeatSuite
-    -- dslSuite
+    dslSuite
 
 notesSuite :: Free TestF Unit
 notesSuite =
@@ -84,8 +84,12 @@ repeatSuite =
 dslSuite :: Free TestF Unit
 dslSuite =
   suite "Translation of ABC to the full PSoM DSL" do
+    {-
     test "grace notes" do
        Assert.equal "" (toDSL gracedDProgram AcousticGrandPiano)
+    -}
+    test "no grace notes" do
+       Assert.equal "" (toDSL twoNoteProgram AcousticGrandPiano)
 
 headers :: String 
 headers = 
