@@ -87,9 +87,11 @@ dslSuite =
     {-
     test "grace notes" do
        Assert.equal "" (toDSL gracedDProgram AcousticGrandPiano)
-    -}
     test "no grace notes" do
        Assert.equal "" (toDSL twoNoteProgram AcousticGrandPiano)
+    -}
+    test "triplet" do
+       Assert.equal "" (toDSL tripletProgram AcousticGrandPiano)
 
 headers :: String 
 headers = 
@@ -250,12 +252,16 @@ noteMus duration pitchClass =
   let 
     n = note duration pitchClass
   in
-    singleton (PSGRACEABLENOTE (PSGraceableNote {graces: Nil, graceDuration: (1 % 1), note: n}))
-  
+    singleton (PSGRACEABLENOTE (makeGraceable n))  
   
 note :: Rational -> String -> PSNote 
 note duration pitchClass = 
   PSNote { duration, octave: 4, pitchClass }
+
+-- promote a simple note to a graceable note
+makeGraceable :: PSNote -> PSGraceableNote 
+makeGraceable psNote =
+  PSGraceableNote {graces: Nil, graceDuration: (1 % 1), note: psNote }
 
 rest :: List PSMusic
 rest =
@@ -276,9 +282,9 @@ tripletDEF :: List PSMusic
 tripletDEF = 
   singleton $ PSTUPLET $ PSRestOrNoteSequence
     { signature : (3 % 2)
-    , notes : ( Right (note (1 % 8) "D")
-              : Right (note (1 % 8) "E")
-              : Right (note (1 % 8) "Fs")
+    , notes : ( Right (makeGraceable (note (1 % 8) "D"))
+              : Right (makeGraceable (note (1 % 8) "E"))
+              : Right (makeGraceable (note (1 % 8) "Fs"))
               : Nil )
     }
 

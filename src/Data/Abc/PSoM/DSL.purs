@@ -146,13 +146,13 @@ tuplet (PSRestOrNoteSequence nrs) =
               , ")"
               ]
 
-noteOrRest :: Either PSRest PSNote -> String
+noteOrRest :: Either PSRest PSGraceableNote -> String
 noteOrRest ern =
   case ern of
     Left r ->
       rest r
-    Right n ->
-      note n
+    Right gn ->
+      graceableNote gn
 
 nicelySpace :: Array String -> String
 nicelySpace xs =

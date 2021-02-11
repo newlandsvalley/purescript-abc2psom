@@ -53,7 +53,7 @@ instance ordPSRest :: Ord PSRest  where
 
 data PSRestOrNoteSequence = PSRestOrNoteSequence -- for tuplets
   { signature :: Rational
-  , notes :: List (Either PSRest PSNote)
+  , notes :: List (Either PSRest PSGraceableNote)
   }
 
 derive instance genericPSRestOrNoteSequence :: Generic PSRestOrNoteSequence _

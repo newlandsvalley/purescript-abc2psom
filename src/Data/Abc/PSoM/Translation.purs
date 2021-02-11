@@ -322,7 +322,10 @@ accumNotes tstate abcNotes =
   foldl accumNote (Tuple tstate Nil) abcNotes
 
 -- | accumulate a note/rest
-accumRestOrNote :: Tuple TState (List (Either PSRest PSNote)) -> RestOrNote -> Tuple TState (List (Either PSRest PSNote))
+accumRestOrNote :: 
+  Tuple TState (List (Either PSRest PSGraceableNote)) ->
+  RestOrNote ->
+  Tuple TState (List (Either PSRest PSGraceableNote))
 accumRestOrNote (Tuple tstate psNotes) abcRestOrNote =
   let
     barAccidentals = case abcRestOrNote of
@@ -334,15 +337,15 @@ accumRestOrNote (Tuple tstate psNotes) abcRestOrNote =
       Left abcRest ->
         Left $ buildRest tstate abcRest.duration
       Right gNote ->
-        -- we really ought to include the possibility of grace notes in tuplets
-        -- but for now, ignore it
-        -- Right $ buildGraceableNote tstate gNote
-        Right $ buildNote tstate gNote.abcNote
+        Right $ buildGraceableNote tstate gNote
   in
     Tuple (tstate {currentBarAccidentals = barAccidentals }) (nextNote : psNotes)
 
 -- | ditto for a bunch of notes
-accumRestOrNotes :: TState -> List (Either AbcRest GraceableNote) -> Tuple TState (List (Either PSRest PSNote))
+accumRestOrNotes :: 
+  TState -> 
+  List (Either AbcRest GraceableNote) ->
+  Tuple TState (List (Either PSRest PSGraceableNote))
 accumRestOrNotes tstate gNotes =
   foldl accumRestOrNote (Tuple tstate Nil) gNotes
 
