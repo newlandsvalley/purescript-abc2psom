@@ -37,7 +37,7 @@ main = runTest do
   suite "melody" do
     notesSuite
     repeatSuite
-    dslSuite
+    -- dslSuite
 
 notesSuite :: Free TestF Unit
 notesSuite =
