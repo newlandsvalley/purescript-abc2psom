@@ -250,7 +250,7 @@ noteMus duration pitchClass =
   let 
     n = note duration pitchClass
   in
-    singleton (PSGRACEDNOTE (PSGracedNote {graces: Nil, graceDuration: (1 % 1), note: n}))
+    singleton (PSGRACEABLENOTE (PSGraceableNote {graces: Nil, graceDuration: (1 % 1), note: n}))
   
   
 note :: Rational -> String -> PSNote 
@@ -292,14 +292,14 @@ gracedDProgram =
 
 gracedD :: List PSMusic 
 gracedD = 
-  singleton (PSGRACEDNOTE gracedDNote)
+  singleton (PSGRACEABLENOTE gracedDNote)
 
-gracedDNote :: PSGracedNote 
+gracedDNote :: PSGraceableNote 
 gracedDNote = 
-  PSGracedNote { graces: gracesFE
-               , graceDuration: (1 % 80) -- for each grace note
-               , note: (note (1 % 10) "D")
-               }
+  PSGraceableNote { graces: gracesFE
+                  , graceDuration: (1 % 80) -- for each grace note
+                  , note: (note (1 % 10) "D")
+                  }
 
 -- | the actual duration in grace notes is not used because it is overridden
 gracesFE :: List PSNote

@@ -54,11 +54,12 @@ line ms =
 
 music :: PSMusic -> String
 music (PSNOTE n) = note n
-music (PSGRACEDNOTE n) = gracedNote n
+music (PSGRACEABLENOTE n) = graceableNote n
 music (PSREST r) = rest r
 music (PSCHORD c) = chord c
 music (PSTUPLET t) = tuplet t
 
+-- a simple ungraced note
 note :: PSNote -> String
 note (PSNote n) =
   case (lookup n.duration durationMap) of
@@ -72,20 +73,21 @@ note (PSNote n) =
                   , ")"
                   ]
 
--- we now use PSGracedNote in all contexts where a note can be graced, but is is very 
+-- we now use PSGraceableNote in all contexts where a note can be graced, but is is very 
 -- important to translate as just a PSNote in the common case which is where grace 
 -- notes are absent.  Otherwise we produce a an empty line of grace notes which will 
 -- fail in the DSL parser.    
-gracedNote :: PSGracedNote -> String
-gracedNote (PSGracedNote gn) =      
+graceableNote :: PSGraceableNote -> String
+graceableNote (PSGraceableNote gn) =      
   case gn.graces of  
     Nil -> 
       note gn.note        
     _ ->
-      trulyGracedNote (PSGracedNote gn)  
-                  
-trulyGracedNote :: PSGracedNote -> String
-trulyGracedNote (PSGracedNote gn) =
+      gracedNote (PSGraceableNote gn)  
+
+-- an actually graced note                 
+gracedNote :: PSGraceableNote -> String
+gracedNote (PSGraceableNote gn) =
   let 
     graceNotes = graces gn.graces gn.graceDuration
     actualNote = curtailedGracedNote gn.note

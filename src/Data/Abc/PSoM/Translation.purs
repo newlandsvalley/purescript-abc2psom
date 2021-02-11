@@ -267,7 +267,7 @@ addChordToState chordDuration tstate notes =
       Just lastgNote ->
         let
           lastGracedNote = buildGraceableNote tstate lastgNote
-          messages = psChord : (PSGRACEDNOTE lastGracedNote) : tstate.currentBar.psomMessages
+          messages = psChord : (PSGRACEABLENOTE lastGracedNote) : tstate.currentBar.psomMessages
         in
           tstate' { currentBar = tstate'.currentBar { psomMessages = messages }
                   , lastNoteTied = Nothing
@@ -294,7 +294,7 @@ addTupletToState signature tstate abcRestOrNotes =
       Just lastgNote ->
         let
           lastGracedNote = buildGraceableNote tstate lastgNote
-          messages = psTuplet : (PSGRACEDNOTE lastGracedNote) : tstate.currentBar.psomMessages
+          messages = psTuplet : (PSGRACEABLENOTE lastGracedNote) : tstate.currentBar.psomMessages
         in
           tstate' { currentBar = tstate'.currentBar { psomMessages = messages }
                   , lastNoteTied = Nothing }
@@ -376,7 +376,7 @@ processNoteWithTie tstate gNote =
             Tuple (tstate.currentBar.psomMessages) (Just combinedGraceableNote)
           else
             -- incoming note not tied - emit the augmented note
-            Tuple ((PSGRACEDNOTE psgNote) : tstate.currentBar.psomMessages) Nothing
+            Tuple ((PSGRACEABLENOTE psgNote) : tstate.currentBar.psomMessages) Nothing
       _  ->
         if (abcNote.tied) then
           -- the new note is tied and so cache it
@@ -386,7 +386,7 @@ processNoteWithTie tstate gNote =
             psgNote = buildGraceableNote tstate gNote
           in
             -- write out the note to the current bar
-            Tuple ((PSGRACEDNOTE psgNote) : tstate.currentBar.psomMessages) Nothing
+            Tuple ((PSGRACEABLENOTE psgNote) : tstate.currentBar.psomMessages) Nothing
 
 -- ! increment a note duration 
 -- | used to build up tied notes
@@ -410,14 +410,14 @@ modifyNoteDuration gNote modifier =
 
 
 -- Build either a normal note (returned as a grace-free GraceNote or a true graced note
-buildGraceableNote :: TState -> GraceableNote -> PSGracedNote
+buildGraceableNote :: TState -> GraceableNote -> PSGraceableNote
 buildGraceableNote tstate gnote =
   case gnote.maybeGrace of  
     Nothing -> 
       let 
         note = buildNote tstate gnote.abcNote
       in
-        PSGracedNote { graces: Nil, graceDuration: (1 % 1), note}
+        PSGraceableNote { graces: Nil, graceDuration: (1 % 1), note}
     Just grace -> 
       let 
         graceCount = length grace.notes
@@ -436,7 +436,7 @@ buildGraceableNote tstate gnote =
         note =
           buildNote tstate (gnote.abcNote { duration = noteDuration})
       in 
-        PSGracedNote { graces, graceDuration, note }
+        PSGraceableNote { graces, graceDuration, note }
 
 -- | Our ABC implementation uses middle C = (C,5)
 -- | whereas HSoM (and thus PSoM) uses middle C = (C,4)

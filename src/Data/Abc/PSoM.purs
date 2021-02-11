@@ -62,21 +62,22 @@ instance showPSRestOrNoteSequence :: Show PSRestOrNoteSequence where
 instance eqPSRestOrNoteSequence :: Eq PSRestOrNoteSequence where
   eq = genericEq
 
-data PSGracedNote = PSGracedNote
+-- | a note which may or may not be graced
+data PSGraceableNote = PSGraceableNote
   { graces :: List PSNote
   , graceDuration :: Rational   -- equal to the grace duration in each grace PSNote
   , note :: PSNote 
   }  
 
-derive instance genericPSGracedNote :: Generic PSGracedNote _
-instance showPSGracedNote :: Show PSGracedNote where
+derive instance genericPSGraceableNote :: Generic PSGraceableNote _
+instance showPSGraceableNote :: Show PSGraceableNote where
   show = genericShow
-instance eqPSGracedNote :: Eq PSGracedNote where
+instance eqPSGraceableNote :: Eq PSGraceableNote where
   eq = genericEq  
 
 data PSMusic =
     PSNOTE PSNote       
-  | PSGRACEDNOTE PSGracedNote       
+  | PSGRACEABLENOTE PSGraceableNote       
   | PSREST PSRest
   | PSCHORD (List PSNote)
   | PSTUPLET PSRestOrNoteSequence
