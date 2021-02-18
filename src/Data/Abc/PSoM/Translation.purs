@@ -147,8 +147,8 @@ transformMusic m =
     Rest r ->
       updateState addRestToState r.duration
 
-    Tuplet mGrace signature restsOrNotes ->
-      updateState (addTupletToState (signature.p % signature.q)) restsOrNotes
+    Tuplet t ->
+      updateState (addTupletToState (t.signature.p % t.signature.q)) t.restsOrNotes
 
     Chord abcChord ->
       updateState (addChordToState abcChord.duration) abcChord.notes
