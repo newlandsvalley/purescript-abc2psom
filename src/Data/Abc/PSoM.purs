@@ -10,8 +10,8 @@ import Data.Semigroup (class Semigroup)
 import Data.Monoid (class Monoid)
 import Data.Ordering (Ordering(..))
 import Data.Generic.Rep
-import Data.Generic.Rep.Eq (genericEq)
-import Data.Generic.Rep.Show (genericShow)
+import Data.Eq.Generic (genericEq)
+import Data.Show.Generic (genericShow)
 
 -- | Intermediate data structures involved in translating ABC to the PSoM DSL
 -- | which represents a single voice in the ABC tune
