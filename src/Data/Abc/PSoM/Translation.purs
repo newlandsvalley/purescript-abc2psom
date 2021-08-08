@@ -4,8 +4,9 @@ module Data.Abc.PSoM.Translation (initialise, toPSoM) where
 import Data.Abc.PSoM
 
 import Control.Monad.State (State, get, put, evalState)
-import Data.Abc (AbcRest, AbcTune, Accidental(..), Bar, BarLine, BodyPart(..), Broken(..), GraceableNote, Header(..), Mode(..), ModifiedKeySignature, Music(..), MusicLine, NoteDuration, PitchClass(..), RestOrNote, TempoSignature, TuneBody, AbcNote)
+import Data.Abc (AbcRest, AbcTune, Accidental(..), Bar, BarLine, BodyPart(..), Broken(..), GraceableNote, Header(..), ModifiedKeySignature, Music(..), MusicLine, NoteDuration, RestOrNote, TempoSignature, TuneBody, AbcNote)
 import Data.Abc.Accidentals as Accidentals
+import Data.Abc.KeySignature (defaultKey)
 import Data.Abc.Metadata (dotFactor, getKeySig)
 import Data.Abc.Midi (midiPitchOffset)
 import Data.Abc.Midi.RepeatSections (initialRepeatState, indexBar, finalBar)
@@ -71,11 +72,6 @@ buildNewBar i barLine =
   ,  iteration : barLine.iteration
   ,  psomMessages : Nil
   }
-
--- | default to C Major (i.e. no accidental modifiers)
-defaultKey :: ModifiedKeySignature
-defaultKey =
-  { keySignature: { pitchClass: C, accidental: Natural, mode: Major }, modifications: Nil }
 
 -- | this initial state is then threaded through the computation
 -- | but will be altered when ABC headers are encountered
@@ -225,7 +221,7 @@ transformHeader h =
   case h of
     UnitNoteLength d ->
       updateState addUnitNoteLenToState d
-    Key mks _ ->
+    Key mks ->
       updateState addKeySigToState mks
     Tempo t ->
       updateState addTempoToState t
@@ -329,7 +325,7 @@ accumRestOrNote ::
 accumRestOrNote (Tuple tstate psNotes) abcRestOrNote =
   let
     barAccidentals = case abcRestOrNote of
-      Left abcRest ->
+      Left _ ->
         tstate.currentBarAccidentals
       Right gNote ->
         addGraceableNoteToBarAccidentals gNote tstate.currentBarAccidentals
