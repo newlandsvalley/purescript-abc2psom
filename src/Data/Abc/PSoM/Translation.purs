@@ -8,7 +8,7 @@ import Data.Abc (AbcRest, AbcTune, Accidental(..), Bar, BarLine, BodyPart(..), B
 import Data.Abc.Accidentals as Accidentals
 import Data.Abc.KeySignature (defaultKey)
 import Data.Abc.Metadata (dotFactor, getKeySig)
-import Data.Abc.Midi (midiPitchOffset)
+import Data.Abc.Midi.Pitch (midiPitchOffset)
 import Data.Abc.Midi.RepeatSections (initialRepeatState, indexBar, finalBar)
 import Data.Abc.PSoM.RepeatBuilder (buildRepeatedMelody)
 import Data.Abc.PSoM.Types (PSoMBar)
@@ -557,7 +557,7 @@ pitchString :: TState -> AbcNote -> String
 pitchString tstate abcNote =
   let
     pitchNumber =
-      midiPitchOffset abcNote tstate.modifiedKeySignature tstate.currentBarAccidentals
+      midiPitchOffset tstate.modifiedKeySignature tstate.currentBarAccidentals abcNote
   in
     fromMaybe "C" $ Array.index sharpNotes pitchNumber
 
