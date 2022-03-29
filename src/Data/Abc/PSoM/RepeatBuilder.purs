@@ -97,7 +97,7 @@ variantProgram preface endings =
     endingsList = Array.toUnfoldable endings
     variables = preface : endingsList
     programArray :: Array Int
-    programArray = Array.concat $ Array.mapWithIndex (\i n -> [0, (i+1)]) endings 
+    programArray = Array.concat $ Array.mapWithIndex (\i _n -> [0, (i+1)]) endings 
     program :: List Int
     program = Array.toUnfoldable programArray
     tempo = fromInt 1
@@ -133,8 +133,9 @@ variantEndingSlice start end section sectionBars (Tuple index pos) =
   let
     -- the first ending is the main tune section which is always from the 
     -- start to the first volta 
-    firstEnding :: Int
-    firstEnding = fromMaybe start $ variantPositionOf 0 section
+    -- firstEnding :: Int
+    -- firstEnding = fromMaybe start $ variantPositionOf 0 section
+    
     -- this is the current volta we're looking at
     thisEnding = pos
     -- this next bit is tricky
