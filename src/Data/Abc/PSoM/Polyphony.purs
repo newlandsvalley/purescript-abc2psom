@@ -7,11 +7,11 @@ import Data.Abc.Metadata (getTitle)
 import Data.Abc.PSoM.DSL (toDSL)
 import Data.Abc.PSoM.Translation (initialise, toPSoM)
 import Data.Abc.Voice (partitionTuneBody)
-import Data.Array (head, index, length, mapWithIndex)
-import Data.Foldable (foldl)
-import Data.Maybe (Maybe(..), fromJust, fromMaybe)
+import Data.Array (index)
+import Data.Array.NonEmpty (NonEmptyArray)
+import Data.Array.NonEmpty (head, foldl1, length, mapWithIndex) as NEA
+import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Midi.Instrument (InstrumentName(..))
-import Partial.Unsafe (unsafePartial)
 import Prelude (($), (>), (<>), map)
 
 -- | Discriminate between monophonic and polyphonic ABC tunes and generate
@@ -24,45 +24,43 @@ generateDSL  abcTune instrumentNames =
     voices = partitionTuneBody abcTune
     tuneName = entitle $ getTitle abcTune
   in
-    if (length voices) > 1 then
+    if (NEA.length voices) > 1 then
       -- polyphonic
       let
-        voicesArray :: Array String
+        voicesArray :: NonEmptyArray String
         voicesArray = generateVoices abcTune voices instrumentNames
       in
-        tuneName <> "\r\n" <> "Par\r\n" <> (foldl (<>) "" voicesArray)
+        tuneName <> "\r\n" <> "Par\r\n" <> (NEA.foldl1 (<>) voicesArray)
     else
       -- monophonic
       tuneName <> "\r\n" <> (generateVoice instrumentNames abcTune 0 abcTune.body)
 
 -- | As above, but generate the PSoM DSL for the separate ABC voices and tune name 
 -- | using the provided instruments
-generateDSL' :: Array AbcTune -> Array InstrumentName -> String -> String
+generateDSL' :: NonEmptyArray AbcTune -> Array InstrumentName -> String -> String
 generateDSL' tunes instrumentNames name =
-  case (length tunes) of 
-    0 -> 
-      ""
+  case (NEA.length tunes) of 
     1 ->
       -- monophonic
       let 
-        abcTune = unsafePartial $ fromJust $ head tunes 
+        abcTune = NEA.head tunes 
       in
         (enquote name) <> "\r\n" <> (generateVoice instrumentNames abcTune 0 abcTune.body)    
     _ -> 
       -- polyphonic
       let
-        abcTune = unsafePartial $ fromJust $ head tunes 
+        abcTune = NEA.head tunes 
         voices = map (\t -> t.body) tunes
-        voicesArray :: Array String
+        voicesArray :: NonEmptyArray String
         voicesArray = generateVoices abcTune voices instrumentNames
       in
-        (enquote name) <> "\r\n" <> "Par\r\n" <> (foldl (<>) "" voicesArray)  
+        (enquote name) <> "\r\n" <> "Par\r\n" <> (NEA.foldl1 (<>) voicesArray)  
 
 
 -- | generate the DSL for all the polyphonic voices
-generateVoices :: AbcTune -> Array TuneBody -> Array InstrumentName -> Array String
+generateVoices :: AbcTune -> NonEmptyArray TuneBody -> Array InstrumentName -> NonEmptyArray String
 generateVoices abcTune tuneBodies instrumentNames =
-  mapWithIndex (generateVoice instrumentNames abcTune) tuneBodies
+  NEA.mapWithIndex (generateVoice instrumentNames abcTune) tuneBodies
 
 -- | generate PSoM DSL for a single voice
 -- | note that for monophonic tunes, TuneBody is identical to AbcTune.body

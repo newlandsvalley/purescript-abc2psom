@@ -14,7 +14,6 @@ You can edit this file as you like.
   , "midi"
   , "newtype"
   , "ordered-collections"
-  , "partial"
   , "prelude"
   , "rationals"
   , "school-of-music"
