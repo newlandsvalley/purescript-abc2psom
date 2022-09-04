@@ -6,8 +6,8 @@ import Data.Abc.PSoM
 import Control.Monad.State (State, get, put, modify_, execState)
 import Data.Abc (AbcRest, AbcTune, Accidental(..), Bar, BarLine, BodyPart(..), Broken(..), GraceableNote, Header(..), ModifiedKeySignature, Music(..), MusicLine, NoteDuration, RestOrNote, TempoSignature, TuneBody, AbcNote)
 import Data.Abc.Accidentals as Accidentals
-import Data.Abc.KeySignature (defaultKey)
-import Data.Abc.Metadata (dotFactor, getKeySig)
+import Data.Abc.KeySignature (defaultKey, getKeySig)
+import Data.Abc.Utils (dotFactor)
 import Data.Abc.Midi.Pitch (midiPitchOffset)
 import Data.Abc.Midi.RepeatSections (initialRepeatState, indexBar, finalBar)
 import Data.Abc.PSoM.RepeatBuilder (buildRepeatedMelody)

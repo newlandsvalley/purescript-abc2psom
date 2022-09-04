@@ -3,7 +3,7 @@ module Data.Abc.PSoM.Polyphony
   , generateDSL') where
 
 import Data.Abc (AbcTune, TuneBody)
-import Data.Abc.Metadata (getTitle)
+import Data.Abc.Utils (getTitle)
 import Data.Abc.PSoM.DSL (toDSL)
 import Data.Abc.PSoM.Translation (initialise, toPSoM)
 import Data.Abc.Voice (partitionTuneBody)

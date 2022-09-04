@@ -124,12 +124,12 @@ accumulateEndingSlices mbs start end section  =
     sectionBars = filter (barSelector start end) mbs
   in 
     map
-       (variantEndingSlice start end section sectionBars)
+       (variantEndingSlice end section sectionBars)
        (activeVariants section)   
 
 -- | build an ending slice for a particular variant ending at index 'index'
-variantEndingSlice :: BarNo -> BarNo -> Section -> List PSoMBar -> Tuple Int Int -> List PSMusic 
-variantEndingSlice start end section sectionBars (Tuple index pos) = 
+variantEndingSlice :: BarNo -> Section -> List PSoMBar -> Tuple Int Int -> List PSMusic 
+variantEndingSlice end section sectionBars (Tuple index pos) = 
   let
     -- the first ending is the main tune section which is always from the 
     -- start to the first volta 
