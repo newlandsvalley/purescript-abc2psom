@@ -1,6 +1,6 @@
 module Test.Main where
 
-import Prelude
+import Prelude (Unit, discard, show, ($), (<>))
 import Effect (Effect)
 import Control.Monad.Free (Free)
 import Data.List (List(..), (:), singleton)

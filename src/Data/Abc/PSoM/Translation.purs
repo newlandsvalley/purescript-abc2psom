@@ -4,12 +4,12 @@ module Data.Abc.PSoM.Translation (initialise, toPSoM) where
 import Data.Abc.PSoM
 
 import Control.Monad.State (State, get, put, modify_, execState)
-import Data.Abc (AbcRest, AbcTune, Accidental(..), Bar, BarLine, BodyPart(..), Broken(..), GraceableNote, Header(..), ModifiedKeySignature, Music(..), MusicLine, NoteDuration, RestOrNote, TempoSignature, TuneBody, AbcNote)
+import Data.Abc (AbcRest, AbcTune, Accidental(..), Bar, BarLine, BodyPart(..), GraceableNote, Header(..), ModifiedKeySignature, Music(..), MusicLine, NoteDuration, RestOrNote, TempoSignature, TuneBody, AbcNote)
 import Data.Abc.Accidentals as Accidentals
 import Data.Abc.KeySignature (defaultKey, getKeySig)
-import Data.Abc.Utils (dotFactor)
 import Data.Abc.Midi.Pitch (midiPitchOffset)
 import Data.Abc.Midi.RepeatSections (initialRepeatState, indexBar, finalBar)
+import Data.Abc.Normaliser (normaliseTuneBody)
 import Data.Abc.PSoM.RepeatBuilder (buildRepeatedMelody)
 import Data.Abc.PSoM.Types (PSoMBar)
 import Data.Abc.Repeats.Types (RepeatState)
@@ -33,11 +33,12 @@ initialise =
   initialState
 
 -- | Transform ABC into PSoM intermediate format
--- toPSoM :: TuneBody -> TState -> PSoMProgram
 toPSoM :: TuneBody -> TState -> PSoMProgram
 toPSoM tuneBody startingState =
   let 
-    tstate = execState (transformBody tuneBody) startingState
+    -- we must normalise the tune body to replace broken rhythm pairs with individual rests or notes
+    -- which eases later transformations
+    tstate = execState (transformBody $ normaliseTuneBody tuneBody) startingState
   in 
     makeProgram tstate
 
@@ -146,27 +147,11 @@ transformMusic m =
     Chord abcChord ->
       handleChord abcChord.duration abcChord.notes
 
-    BrokenRhythmPair note1 broken note2 ->
-      case broken of
-        LeftArrow i ->
-          let
-            signature1 = brokenTempo i false
-            signature2 = brokenTempo i true
-          in do
-            _ <- handleGraceableNote signature1 note1
-            handleGraceableNote signature2 note2
-        RightArrow i ->
-          let
-            signature1 = brokenTempo i true
-            signature2 = brokenTempo i false
-          in do
-            _ <- handleGraceableNote signature1 note1
-            handleGraceableNote signature2 note2
-
     Inline header ->
       transformHeader header
 
     _ ->
+      -- this includes broken rhythm pairs which have been replaced by standard notes and rests by normalisation
       pure unit
 
 -- | add a bar to the state.  index it and add it to the growing list of bars
@@ -397,7 +382,7 @@ incrementNoteDuration gNote duration =
     gNote { abcNote = combinedAbcNote }
 
 -- | modify a note duration 
--- | for use in broken rhythm pairs etc
+-- | for use in grace notes etc
 modifyNoteDuration :: GraceableNote -> Rational -> GraceableNote
 modifyNoteDuration gNote modifier =
   let
@@ -509,14 +494,6 @@ addNoteToBarAccidentals abcNote accs =
       accs
     acc ->
       Accidentals.add abcNote.pitchClass acc accs
-
--- | work out the broken rhythm tempo
-brokenTempo :: Int -> Boolean -> Rational
-brokenTempo i isUp =
-  if isUp then
-    (fromInt 1) + (dotFactor i)
-  else
-    (fromInt 1) - (dotFactor i)
 
 -- | does the PSoMbar hold no notes or anything else of importance
 isBarEmpty :: PSoMBar -> Boolean

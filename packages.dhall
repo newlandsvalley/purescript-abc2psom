@@ -105,8 +105,8 @@ in  upstream
 -------------------------------
 -}
 let upstream =
-      https://github.com/purescript/package-sets/releases/download/psc-0.15.4-20221012/packages.dhall
-        sha256:31c6db01ae45b911bf529c3ab731b02d114d14115938009b0c72a231589bfffd
+      https://github.com/purescript/package-sets/releases/download/psc-0.15.15-20250120/packages.dhall
+        sha256:2eab21f7362dd5fbaf39576adec53324424425949dba9b7afc3de2af05cc0324
 
 in  upstream
   with school-of-music =
@@ -128,4 +128,24 @@ in  upstream
       ]
     , repo = "https://github.com/newlandsvalley/purescript-school-of-music.git"
     , version = "v1.3.0"
+    }
+  with abc-parser =
+    { dependencies =
+      [ "bifunctors"
+      , "effect"
+      , "either"
+      , "foldable-traversable"
+      , "maybe"
+      , "midi"
+      , "ordered-collections"
+      , "profunctor-lenses"
+      , "rationals"
+      , "strings"
+      , "stringutils"
+      , "string-parsers"
+      , "transformers"
+      , "tuples"
+      ]
+    , repo = "https://github.com/newlandsvalley/purescript-abc-parser.git"
+    , version = "6272454117532d8418cd2445a3dc044f85a9e499"
     }
