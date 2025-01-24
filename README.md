@@ -8,8 +8,7 @@ This code has been hived off from the halogen editor in the PSoM project.  This 
 to build
 --------
 
-    spago install
-    spago build
+    npm run build
 
 To test
 -------

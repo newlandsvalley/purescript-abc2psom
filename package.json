@@ -2,10 +2,10 @@
   "private": true,
   "scripts": {
     "build": "spago build",
-    "test": "spago -x ./test.dhall test"
+    "test": "spago test"
   },
   "devDependencies": {
-    "spago": "^0.21.0",
+    "spago": "^0.93.42",
     "purescript": "^0.15.15",
     "purescript-psa": "^0.5.1"
   }
